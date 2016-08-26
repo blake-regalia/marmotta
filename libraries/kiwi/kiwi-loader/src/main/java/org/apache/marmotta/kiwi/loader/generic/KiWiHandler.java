@@ -21,6 +21,8 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import org.apache.marmotta.commons.sesame.model.Namespaces;
 import org.apache.marmotta.commons.sesame.tripletable.IntArray;
+import org.apache.marmotta.commons.vocabulary.GEO;
+import org.apache.marmotta.commons.vocabulary.GEOSPARQL;
 import org.apache.marmotta.commons.vocabulary.XSD;
 import org.apache.marmotta.kiwi.loader.KiWiLoaderConfiguration;
 import org.apache.marmotta.kiwi.model.rdf.*;
@@ -391,8 +393,17 @@ public class KiWiHandler implements RDFHandler {
                     result = connection.loadLiteral(bvalue);
 
                     if(result == null) {
-                        result= new KiWiBooleanLiteral(bvalue, rtype, importDate);
+                        result = new KiWiBooleanLiteral(bvalue, rtype, importDate);
                     } else {
+                        nodesLoaded++;
+                    }
+                } else if(type.equals(GEOSPARQL.wktLiteral)) {
+                    result = connection.loadLiteral(sanitizeString(value), rtype);
+
+                    if(result == null) {
+                        result = new KiWiGeometryLiteral(sanitizeString(value), rtype, importDate);
+                    }
+                    else {
                         nodesLoaded++;
                     }
                 } else {

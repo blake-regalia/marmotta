@@ -178,7 +178,8 @@ public class PGCopyUtil {
                 }
                 createNodeList(rowArray, l.getId(), l.getClass(), l.getContent(), dbl_value, lng_value, null, null, null, l.getDatatype(), l.getLocale(), l.getCreated(), null);
             } else if(n instanceof KiWiGeometryLiteral) {
-                log.warn("geometries are not yet supported on bulk imports");
+                KiWiGeometryLiteral l = (KiWiGeometryLiteral)n;
+                createNodeList(rowArray, l.getId(), l.getClass(), l.getContent(), null, null, null, null, null, l.getDatatype(), l.getLocale(), l.getCreated(), l.getContent());
             } else {
                 log.warn("unknown node type, cannot flush to import stream: {}", n.getClass());
             }
@@ -201,8 +202,16 @@ public class PGCopyUtil {
         a[9] = lang != null ? lang.getLanguage() : "";
         a[10] = created;
 
+        // schema v5
         if (a.length == 12) {
-            a[11] = geom; //schema v5
+            if(geom == null) {
+                a[11] = null;
+            }
+            else {
+                a[11] = geom
+                        .replace("<http://www.opengis.net/def/crs/OGC/1.3/CRS84> ", "SRID=4326;")  // convert CRS => SRID
+                        .replace(" (", "(");  // PostGIS does not allow spaces after WKT geometry type
+            }
         }
     }
 
