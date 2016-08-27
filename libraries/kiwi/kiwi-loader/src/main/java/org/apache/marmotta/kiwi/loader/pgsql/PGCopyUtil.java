@@ -209,8 +209,8 @@ public class PGCopyUtil {
             }
             else {
                 a[11] = geom
-                        .replace("<http://www.opengis.net/def/crs/OGC/1.3/CRS84> ", "SRID=4326;")  // convert CRS => SRID
-                        .replace(" (", "(");  // PostGIS does not allow spaces after WKT geometry type
+                        .replace("<http://www.opengis.net/def/crs/OGC/1.3/CRS84>", "SRID=4326;");  // convert CRS => SRID
+//                        .replace(" (", "(");  // PostGIS does not allow spaces after WKT geometry type
             }
         }
     }
