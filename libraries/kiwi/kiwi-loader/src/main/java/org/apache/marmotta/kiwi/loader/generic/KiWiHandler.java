@@ -398,14 +398,14 @@ public class KiWiHandler implements RDFHandler {
                         nodesLoaded++;
                     }
                 } else if(type.equals(GEOSPARQL.wktLiteral)) {
-                    result = connection.loadLiteral(sanitizeString(value), rtype);
-
-                    if(result == null) {
+//                    result = connection.loadLiteral(sanitizeString(value), rtype);
+//
+//                    if(result == null) {
                         result = new KiWiGeometryLiteral(sanitizeString(value), rtype, importDate);
-                    }
-                    else {
-                        nodesLoaded++;
-                    }
+//                    }
+//                    else {
+//                        nodesLoaded++;
+//                    }
                 } else {
                     result = connection.loadLiteral(sanitizeString(value), lang, rtype);
 
