@@ -24,9 +24,10 @@ y_client.connect(function(e_connect) {
 
 	// find geometries with duplicates
 	y_client.query(`
-		select gvalue from nodes
-		where gvalue in (
-			select gvalue from nodes group by gvalue having count(*) > 1
+		select svalue from nodes
+		where svalue in (
+			select svalue from nodes where gvalue is not null
+				group by svalue having count(*) > 1
 		)
 	`, (e_select_geoms, h_geoms) => {
 		if(e_select_geoms) local.fail(e_select_geoms);
@@ -38,7 +39,7 @@ y_client.connect(function(e_connect) {
 		async.eachSeries(h_geoms.rows, (h_geom, fk_geom) => {
 
 			// fetch all node ids having this geometry
-			y_client.query(`select id from nodes where gvalue = $1`, [h_geom.gvalue], (e_select_duplicates, h_duplicates) => {
+			y_client.query(`select id from nodes where svalue = $1`, [h_geom.svalue], (e_select_duplicates, h_duplicates) => {
 				if(e_select_duplicates) local.fail(e_select_duplicates);
 
 				// use first id as consolidation node
@@ -68,7 +69,7 @@ y_client.connect(function(e_connect) {
 					});
 				}, () => {
 					// debugging
-					local.good('removed duplicates from geometry: '+h_geom.gvalue.substr(0, 30));
+					local.good('removed all duplicates from geometry: '+h_geom.svalue.substr(46, 30));
 
 					// done with this geometry literal
 					fk_geom();
