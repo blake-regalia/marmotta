@@ -1,3 +1,4 @@
+const os = require('os');
 
 const async = require('async');
 const classer = require('classer');
@@ -5,6 +6,8 @@ const h_argv = require('minimist')(process.argv.slice(2));
 const pg = require('pg');
 
 const local = classer.logger('deduplicate');
+
+const N_CPUS = os.cpus().length;
 
 if(!h_argv.d || !h_argv.u || !h_argv.w) {
 	console.log(`usage:\n\tnode deduplicate.js -d DATABASE_NAME -u USER -w PASSWORD\n`);
@@ -18,8 +21,11 @@ const h_config = {
 	password: h_argv.w,
 };
 
-let y_client = new pg.Client(h_config);
-y_client.connect(function(e_connect) {
+let y_pool = new pg.Pool(Object.assign(h_config, {
+	max: N_CPUS,
+}));
+
+y_pool.connect((e_connect, y_client, fk_client) => {
 	if(e_connect) local.fail('could not connect to ${h_config.database} database: '+e_connect);
 
 	// find geometries with duplicates
@@ -32,11 +38,27 @@ y_client.connect(function(e_connect) {
 	`, (e_select_geoms, h_geoms) => {
 		if(e_select_geoms) local.fail(e_select_geoms);
 
+		// return client to pool
+		fk_client();
+
 		// debugging
 		local.warn(h_geoms.rows.length+' unique geometries have duplicates');
 
-		// each unique geometry
-		async.eachSeries(h_geoms.rows, (h_geom, fk_geom) => {
+		//
+		deduplicate(h_geoms.rows, () => {
+			y_pool.end(() => {
+				local.good('all done :)');
+			});
+		});
+	});
+});
+
+function deduplicate(a_rows, fk_done) {
+	// each unique geometry
+	async.eachLimit(a_rows, N_CPUS, (h_geom, fk_geom) => {
+		// grab a client from the pool
+		y_pool.connect((e_connect, y_client, fk_client) => {
+			if(e_connect) local.fail('database connection interrupted');
 
 			// fetch all node ids having this geometry
 			y_client.query(`select id from nodes where svalue = $1`, [h_geom.svalue], (e_select_duplicates, h_duplicates) => {
@@ -71,17 +93,15 @@ y_client.connect(function(e_connect) {
 					// debugging
 					local.good('removed all duplicates from geometry: '+h_geom.svalue.substr(46, 30));
 
+					// release client to pool
+					fk_client();
+
 					// done with this geometry literal
 					fk_geom();
 				});
 			});
-		}, () => {
-			local.info('closing database connection...');
-
-			y_client.end(() => {
-				local.good('all done :)');
-			});
 		});
+	}, () => {
+		fk_done();
 	});
-
-});
+}
