@@ -30,7 +30,7 @@ y_pool.connect((e_connect, y_client, fk_client) => {
 
 	// find geometries with duplicates
 	y_client.query(`
-		select svalue from nodes
+		select distinct svalue from nodes
 		where svalue in (
 			select svalue from nodes where gvalue is not null
 				group by svalue having count(*) > 1
