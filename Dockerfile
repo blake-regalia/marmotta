@@ -1,19 +1,23 @@
-# Dockerfile for Apache Marmotta
-
+# Dockerfile for Apache Marmotta (584 branch)
 FROM debian:jessie-backports
-MAINTAINER Sergio Fernández <wikier@apache.org>
+MAINTAINER Blake Regalia <blake.regalia@gmail.com>
 
+# Marmotta web server
 EXPOSE 8080
 
+# PostgreSQL database
+EXPOSE 5432
+
+# Marmotta source code
 WORKDIR /src
-ADD . /src
+COPY . /src
 
 # configuration
-ENV DEBIAN_FRONTEND noninteractive
-ENV DB_NAME marmotta
-ENV DB_USER marmotta
-ENV DB_PASS s3cr3t
-ENV PG_VERSION 9.4
+ENV DB_NAME kiwi
+ENV DB_USER script
+ENV DB_PASS pass
+ENV POSTGRESQL_VERSION 10
+ENV POSTGIS_VERSION 2.4
 ENV WAR_PATH /src/launchers/marmotta-webapp/target/marmotta.war
 ENV CONF_PATH /var/lib/marmotta/system-config.properties
 
@@ -21,7 +25,7 @@ ENV CONF_PATH /var/lib/marmotta/system-config.properties
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y \
-		openjdk-8-jdk \
+		default-jdk \
 		maven \
         tomcat7 \
     || apt-get install -y -f
@@ -40,17 +44,25 @@ RUN apt-get update \
 	&& apt-get install -y postgresql-common \
 	&& sed -ri 's/#(create_main_cluster) .*$/\1 = false/' /etc/postgresql-common/createcluster.conf \
 	&& apt-get install -y \
-		postgresql-$PG_VERSION \
-		postgresql-contrib-$PG_VERSION
-RUN pg_createcluster $PG_VERSION main --start
+        postgresql-$POSTGRESQL_VERSION \
+        postgresql-$POSTGRESQL_VERSION-postgis-$POSTGIS_VERSION \
+		postgresql-contrib-$POSTGRESQL_VERSION
+
+RUN pg_createcluster $POSTGRESQL_VERSION main --start
 USER postgres
 RUN service postgresql start \
-    && psql --command "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';" \
-    && psql --command "CREATE DATABASE $DB_NAME WITH OWNER $DB_USER;"
+    && psql --command "CREATE USER $DB_USER WITH SUPERUSER LOGIN PASSWORD '$DB_PASS';" \
+    && psql --command "CREATE DATABASE $DB_NAME WITH OWNER $DB_USER;" \
+    && psql kiwi < ./aux/add-indexes.sql
 USER root
 RUN service postgresql stop
-RUN echo "host all  all    127.0.0.1/32  md5" >> /etc/postgresql/$PG_VERSION/main/pg_hba.conf
-RUN echo "listen_addresses='*'" >> /etc/postgresql/$PG_VERSION/main/postgresql.conf
+
+# Adjust PostgreSQL configuration so that remote connections to the database are possible.
+RUN echo "host all  all    0.0.0.0/0  md5" >> "/etc/postgresql/$POSTGRESQL_VERSION/main/pg_hba.conf"
+#RUN echo "host all  all    127.0.0.1/32  md5" >> /etc/postgresql/$POSTGRESQL_VERSION/main/pg_hba.conf
+
+# Also add `listen_addresses` to postgresql.conf
+RUN echo "listen_addresses='*'" >> "/etc/postgresql/$POSTGRESQL_VERSION/main/postgresql.conf"
 
 # install the webapp
 #RUN dpkg --debug=2000 --install target/marmotta_*_all.deb <-- we'd need to fix the postinst
@@ -65,6 +77,7 @@ RUN echo "database.type = postgres" >> $CONF_PATH
 RUN echo "database.url = jdbc:postgresql://localhost:5432/$DB_NAME?prepareThreshold=3" >> $CONF_PATH
 RUN echo "database.user = $DB_USER" >> $CONF_PATH
 RUN echo "database.password = $DB_PASS" >> $CONF_PATH
+RUN echo "kiwi.setup.database = true" >> $CONF_PATH
 RUN chown -R tomcat7:tomcat7 "$(dirname $CONF_PATH)"
 
 # cleanup
