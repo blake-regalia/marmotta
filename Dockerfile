@@ -53,7 +53,7 @@ USER postgres
 RUN service postgresql start \
     && psql --command "CREATE USER $DB_USER WITH SUPERUSER LOGIN PASSWORD '$DB_PASS';" \
     && psql --command "CREATE DATABASE $DB_NAME WITH OWNER $DB_USER;" \
-    && psql kiwi < ./aux/add-indexes.sql
+    && psql $DB_NAME < ./aux/add-indexes.sql
 USER root
 RUN service postgresql stop
 
