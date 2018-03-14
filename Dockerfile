@@ -53,7 +53,7 @@ USER postgres
 RUN service postgresql start \
     && psql --command "CREATE USER $DB_USER WITH SUPERUSER LOGIN PASSWORD '$DB_PASS';" \
     && psql --command "CREATE DATABASE $DB_NAME WITH OWNER $DB_USER;" \
-    && psql --command "CREATE EXTENSION POSTGIS;" "$DB_NAME" \
+    && psql $DB_NAME < ./libraries/kiwi/kiwi-triplestore/src/main/resources/org/apache/marmotta/kiwi/persistence/pgsql/create_base_tables.sql \
     && psql $DB_NAME < ./aux/add-indexes.sql
 USER root
 RUN service postgresql stop
